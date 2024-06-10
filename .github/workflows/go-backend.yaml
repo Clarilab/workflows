@@ -3,6 +3,10 @@ name: Golang Backend
 on:
   workflow_call:
     inputs:
+      go_version: 
+        type: string
+        required: false
+        default: ">=1.22.0"
       work_dir:
         type: string
         required: true
@@ -15,7 +19,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ">=1.22.0"
+          go-version: ${{inputs.go_version}}
 
       - name: Checkout
         uses: actions/checkout@v4
