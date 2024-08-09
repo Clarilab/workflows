@@ -11,10 +11,21 @@ on:
         type: string
         required: true
 
+permissions:
+  # used to checkout code
+  contents: read
+  # used by golang/govulncheck-action to only analyze added code
+  pull-requests: read
+  # used by golang/govulncheck-action to annotate code in a PR
+  checks: write
+
 jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
+
+    env:
+      GORIVATE: github.com/${{ github.repository_owner }}/*
 
     defaults:
       run:
@@ -32,6 +43,8 @@ jobs:
           cache-dependency-path: ${{ inputs.work_dir }}/go.sum
           go-version: ${{ inputs.go_version }}
 
+      - name: Configure git for private dependencies
+        run: git config --global url."https://${{ github.repository_owner }}:${{ github.token }}@github.com".insteadOf "https://github.com"
 
       - name: Vet
         run: go vet ./...
