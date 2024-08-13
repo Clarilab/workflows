@@ -3,7 +3,7 @@ name: Golang Backend
 on:
   workflow_call:
     inputs:
-      go_version: 
+      go_version:
         type: string
         required: false
         default: ">=1.22.0"
@@ -11,40 +11,62 @@ on:
         type: string
         required: true
 
+permissions:
+  # used to checkout code
+  contents: read
+  # used by golang/govulncheck-action to only analyze added code
+  pull-requests: read
+  # used by golang/govulncheck-action to annotate code in a PR
+  checks: write
+
 jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
+
+    env:
+      GORIVATE: github.com/${{ github.repository_owner }}/*
+
+    defaults:
+      run:
+        working-directory: ${{ inputs.work_dir }}
+
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{inputs.go_version}}
+          cache-dependency-path: ${{ inputs.work_dir }}/go.sum
+          go-version: ${{ inputs.go_version }}
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Configure git for private dependencies
+        run: git config --global url."https://${{ github.repository_owner }}:${{ github.token }}@github.com".insteadOf "https://github.com"
 
-      - name: Go Vet
-        shell: bash
-        working-directory: ${{inputs.work_dir}}
+      - name: Vet
         run: go vet ./...
 
-      - name: Check for vulnerabilities
-        id: govulncheck
+      - name: Vulnerabilities
         uses: golang/govulncheck-action@v1
         with:
-          go-package: ./...
-          work-dir: ${{inputs.work_dir}}
           check-latest: true
+          go-package: ./...
+          go-version-input: ${{ inputs.go_version }}
+          repo-checkout: false
+          work-dir: ${{ inputs.work_dir }}
 
-      - name: Run Linter
-        shell: bash
-        working-directory: ${{inputs.work_dir}}
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
-          golangci-lint run --out-format=github-actions
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          only-new-issues: true
+          version: latest
+          working-directory: ${{ inputs.work_dir }}
 
-      - name: Run Tests
-        shell: bash
-        working-directory: ${{inputs.work_dir}}
-        run: go test -short -vet=off -failfast -race -v -coverprofile=coverage.out ./...
+      - name: Tests
+        uses: robherley/go-test-action@v0
+        with:
+          moduleDirectory: ${{ inputs.work_dir }}
+          testArguments: -vet=off -race ./...
