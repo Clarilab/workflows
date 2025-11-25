@@ -59,7 +59,7 @@ jobs:
           work-dir: ${{ inputs.work_dir }}
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           only-new-issues: true
           version: latest
